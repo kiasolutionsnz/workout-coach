@@ -77,7 +77,7 @@ class AccountModel(application:Application):AndroidViewModel(application) {
         try {machine.beginRestore()?.let{saved->exchange(machine.generation){AccountApi.refresh(saved)}}}catch(_:Exception){publish("Couldn’t restore the account. Guest workouts are available.")}
         viewModelScope.launch{while(isActive){delay(30000);val now=System.currentTimeMillis()/1000;val session=machine.session(now);if(machine.status==AuthStatus.SIGNED_IN && (session==null || session.expiresEpochSeconds-now<60))refresh()}}
     }
-    private fun publish(message:String?=null){AccountScope.namespace=machine.namespace;mutable.value=AccountState(machine.namespace,machine.status in listOf(AuthStatus.CHECKING,AuthStatus.SIGNING_IN),message)}
+    private fun publish(message:String?=null){AccountScope.namespace=machine.storageNamespace;mutable.value=AccountState(machine.storageNamespace,machine.status in listOf(AuthStatus.CHECKING,AuthStatus.SIGNING_IN),message)}
     private fun exchange(attempt:Long,action:()->AuthSession){publish();viewModelScope.launch{
         try{val session=withContext(Dispatchers.IO){action()};val accepted=machine.accept(attempt,session,System.currentTimeMillis()/1000);publish();if(!accepted){try{withContext(Dispatchers.IO){AccountApi.logout(session)}}catch(_:Exception){}}}
         catch(_:Exception){if(attempt==machine.generation){try{machine.fail(attempt)}catch(_:Exception){};publish("Couldn’t sign in. Check your details or try again. Guest workouts are available.")}}

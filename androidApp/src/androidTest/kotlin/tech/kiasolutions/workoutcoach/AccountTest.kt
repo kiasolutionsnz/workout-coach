@@ -17,7 +17,7 @@ class AccountTest {
             val raw=prefs.getString("session","")!!;Assert.assertFalse(raw.contains(session.accessToken));Assert.assertFalse(raw.contains(session.refreshToken))
             Assert.assertEquals(session.userId,AndroidSessionStore(context).read()!!.userId)
             prefs.edit().putString("session",raw.dropLast(5)+"AAAAA").commit()
-            val machine=AuthMachine(AndroidSessionStore(context));Assert.assertNull(machine.beginRestore());Assert.assertEquals("guest",machine.namespace);Assert.assertFalse(prefs.contains("session"))
+            val machine=AuthMachine(AndroidSessionStore(context));Assert.assertNull(machine.beginRestore());Assert.assertEquals("guest",machine.storageNamespace);Assert.assertFalse(prefs.contains("session"))
         }finally{store.clear()}
     }
 }

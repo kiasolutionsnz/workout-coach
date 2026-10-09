@@ -16,13 +16,13 @@ class AccountStagingTest {
         try {
             val first=AccountApi.login(a.getString("email"),a.getString("password"));current=first
             Assert.assertTrue(machine.accept(machine.beginLogin(),first,System.currentTimeMillis()/1000))
-            val oldScope=machine.namespace;val repoA=androidRepository(context,oldScope);repoA.savePreference("native-isolation","A");repoA.close()
+            val oldScope=machine.storageNamespace;val repoA=androidRepository(context,oldScope);repoA.savePreference("native-isolation","A");repoA.close()
             val restored=AuthMachine(AndroidSessionStore(context));val saved=restored.beginRestore()!!
             val fresh=AccountApi.refresh(saved);current=fresh;Assert.assertTrue(restored.accept(restored.generation,fresh,System.currentTimeMillis()/1000))
             AccountApi.logout(fresh);restored.logout();var rejected=false;try{AccountApi.refresh(fresh)}catch(_:Exception){rejected=true};Assert.assertTrue("Revoked refresh must be denied",rejected)
             val second=AccountApi.login(b.getString("email"),b.getString("password"));current=second
-            Assert.assertTrue(machine.accept(machine.beginLogin(),second,System.currentTimeMillis()/1000));Assert.assertNotEquals(oldScope,machine.namespace)
-            val repoB=androidRepository(context,machine.namespace);Assert.assertNull(repoB.preferences()["native-isolation"]);repoB.close()
+            Assert.assertTrue(machine.accept(machine.beginLogin(),second,System.currentTimeMillis()/1000));Assert.assertNotEquals(oldScope,machine.storageNamespace)
+            val repoB=androidRepository(context,machine.storageNamespace);Assert.assertNull(repoB.preferences()["native-isolation"]);repoB.close()
             val preserved=androidRepository(context,oldScope);Assert.assertEquals("A",preserved.preferences()["native-isolation"]);preserved.close()
             Assert.assertNull(androidRepository(context,"guest").use{it.preferences()["native-isolation"]})
         }finally{current?.let{try{AccountApi.logout(it)}catch(_:Exception){}};store.clear();file.delete();AccountScope.namespace="guest"}

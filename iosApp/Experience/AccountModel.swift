@@ -69,7 +69,7 @@ final class IOSAccountModel:ObservableObject {
             if self.machine.session(nowEpochSeconds:now).map({$0.expiresEpochSeconds-now<60}) ?? true{self.refresh()}
         }
     }
-    private func publish(_ message:String? = nil){namespace = machine.namespace;IOSAccountScope.namespace = namespace;busy = machine.status == .checking || machine.status == .signingIn;self.message = message}
+    private func publish(_ message:String? = nil){namespace = machine.storageNamespace;IOSAccountScope.namespace = namespace;busy = machine.status == .checking || machine.status == .signingIn;self.message = message}
     private func exchange(_ attempt:Int64,_ action:@escaping ()throws->AuthSession){publish();network.async{[weak self] in
         do {let session = try action();DispatchQueue.main.async{guard let self else{return};do{let accepted = try self.machine.accept(attempt:attempt,session:session,nowEpochSeconds:Int64(Date().timeIntervalSince1970));self.publish();if !accepted{self.network.async{try? IOSAccountAPI.logout(session)}}}catch{self.publish("Secure account storage is unavailable. Guest workouts are available.")}}}
         catch {DispatchQueue.main.async{guard let self,attempt == self.machine.generation else{return};try? self.machine.fail(attempt:attempt);self.publish("Couldn’t sign in. Check your details or try again. Guest workouts are available.")}}

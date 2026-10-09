@@ -24,7 +24,7 @@ enum class AuthStatus { GUEST, CHECKING, SIGNING_IN, SIGNED_IN, UNAVAILABLE }
 class AuthMachine(private val store:SecureSessionStore) {
     var status=AuthStatus.GUEST;private set
     var generation=0L;private set
-    var namespace="guest";private set
+    var storageNamespace="guest";private set
     private var accepted:AuthSession?=null
     private var revocable:AuthSession?=null
     private var expectedUser:String?=null
@@ -39,21 +39,21 @@ class AuthMachine(private val store:SecureSessionStore) {
     @Throws(Exception::class)
     fun beginRefresh():AuthSession? {
         val previous=accepted ?: return null
-        val previousNamespace=namespace
-        invalidateMemory();revocable=previous;namespace=previousNamespace;expectedUser=previous.userId;status=AuthStatus.CHECKING;return previous
+        val previousNamespace=storageNamespace
+        invalidateMemory();revocable=previous;storageNamespace=previousNamespace;expectedUser=previous.userId;status=AuthStatus.CHECKING;return previous
     }
     @Throws(Exception::class)
     fun accept(attempt:Long,session:AuthSession,nowEpochSeconds:Long):Boolean {
         if(attempt!=generation || status !in listOf(AuthStatus.CHECKING,AuthStatus.SIGNING_IN))return false
         if(session.expiresEpochSeconds<=nowEpochSeconds || (expectedUser!=null && expectedUser!=session.userId)) {fail(attempt);return false}
         try {store.write(session)}catch(_:Exception){fail(attempt);return false}
-        accepted=session;revocable=session;namespace="account:${session.userId.lowercase()}";status=AuthStatus.SIGNED_IN;expectedUser=null;return true
+        accepted=session;revocable=session;storageNamespace="account:${session.userId.lowercase()}";status=AuthStatus.SIGNED_IN;expectedUser=null;return true
     }
     @Throws(Exception::class)
     fun fail(attempt:Long) {if(attempt==generation){invalidate();status=AuthStatus.UNAVAILABLE}}
     @Throws(Exception::class)
     fun logout():AuthSession? {val previous=revocable;invalidate();return previous}
     fun session(nowEpochSeconds:Long):AuthSession? = accepted?.takeIf{it.expiresEpochSeconds>nowEpochSeconds && status==AuthStatus.SIGNED_IN}
-    private fun invalidateMemory(){generation++;accepted=null;revocable=null;expectedUser=null;namespace="guest";status=AuthStatus.GUEST}
+    private fun invalidateMemory(){generation++;accepted=null;revocable=null;expectedUser=null;storageNamespace="guest";status=AuthStatus.GUEST}
     private fun invalidate(){invalidateMemory();store.clear()}
 }
