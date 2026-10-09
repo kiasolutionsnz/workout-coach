@@ -10,7 +10,8 @@ class AuthSession(val userId:String,val accessToken:String,val refreshToken:Stri
     override fun toString()="AuthSession([redacted])"
 }
 interface SecureSessionStore {
-    @Throws(Exception::class)
+    // Nullable read is non-throwing for Objective-C/Swift protocol conformance.
+    // Native storage errors return null; restoration remains fail-closed.
     fun read():AuthSession?
     @Throws(Exception::class)
     fun write(session:AuthSession)

@@ -7,12 +7,14 @@ enum AccountError:Error {case unavailable}
 enum IOSAccountScope {static var namespace = "guest"}
 final class KeychainSessionStore:NSObject,SecureSessionStore {
     private let base:[String:Any] = [kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:"tech.kiasolutions.workoutcoach.session",kSecAttrAccount as String:"active"]
-    func read() throws -> AuthSession? {
+    func read() -> AuthSession? {
+        do {
         var query = base;query[kSecReturnData as String] = true;query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result:CFTypeRef?;let status = SecItemCopyMatching(query as CFDictionary,&result)
         if status == errSecItemNotFound{return nil}
         guard status == errSecSuccess,let data = result as? Data,let value = try JSONSerialization.jsonObject(with:data) as? [String:Any],let id = value["id"] as? String,let access = value["access"] as? String,let refresh = value["refresh"] as? String,let expiry = value["expiry"] as? NSNumber,UUID(uuidString:id) != nil,expiry.int64Value>0,!access.isEmpty,!refresh.isEmpty else{throw AccountError.unavailable}
         return AuthSession(userId:id,accessToken:access,refreshToken:refresh,expiresEpochSeconds:expiry.int64Value)
+        }catch{return nil}
     }
     func write(session:AuthSession) throws {
         let data = try JSONSerialization.data(withJSONObject:["id":session.userId,"access":session.accessToken,"refresh":session.refreshToken,"expiry":session.expiresEpochSeconds])
