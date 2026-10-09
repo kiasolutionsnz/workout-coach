@@ -35,7 +35,7 @@ struct CameraSDKConsentView: View {
             Button("Allow SDK metrics and camera counting") { consent.accept(); declined = false; onAccept() }.buttonStyle(.borderedProminent)
             Button("Not now") { declined = true }.buttonStyle(.borderless)
             if declined { Text("Camera counting remains off. You can go back to your routines or history.").accessibilityIdentifier("sdk-consent-declined") }
-        }.accessibilityIdentifier("sdk-consent-disclosure")
+        }
     }
 }
 
