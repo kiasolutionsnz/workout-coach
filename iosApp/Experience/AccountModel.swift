@@ -59,10 +59,14 @@ final class IOSAccountModel:ObservableObject {
     @Published private(set) var namespace = "guest"
     @Published private(set) var busy = false
     @Published private(set) var message:String?
-    private let machine = AuthMachine(store:KeychainSessionStore())
+    private let machine:AuthMachine
+    private let offlineBeta:Bool
+    var accountsEnabled:Bool { !offlineBeta }
     private let network = DispatchQueue(label:"workout.account.network")
     private var timer:Timer?
-    init(){
+    init(offlineBeta:Bool = IOSBuildFeatures.offlineBeta,store:SecureSessionStore = KeychainSessionStore()){
+        self.offlineBeta = offlineBeta;machine = AuthMachine(store:store)
+        if offlineBeta { IOSAccountScope.namespace = "guest";return }
         do {if let saved = try machine.beginRestore(){exchange(machine.generation){try IOSAccountAPI.refresh(saved)}}}catch{publish("Couldn’t restore the account. Guest workouts are available.")}
         timer = Timer.scheduledTimer(withTimeInterval:30,repeats:true){[weak self]_ in
             guard let self,self.machine.status == .signedIn else{return}
@@ -75,8 +79,8 @@ final class IOSAccountModel:ObservableObject {
         do {let session = try action();DispatchQueue.main.async{guard let self else{return};do{let accepted = try self.machine.accept(attempt:attempt,session:session,nowEpochSeconds:Int64(Date().timeIntervalSince1970));self.publish();if !accepted{self.network.async{try? IOSAccountAPI.logout(session)}}}catch{self.publish("Secure account storage is unavailable. Guest workouts are available.")}}}
         catch {DispatchQueue.main.async{guard let self,attempt == self.machine.generation else{return};try? self.machine.fail(attempt:attempt);self.publish("Couldn’t sign in. Check your details or try again. Guest workouts are available.")}}
     }}
-    func login(_ email:String,_ password:String){guard !email.isEmpty && !password.isEmpty else{publish("Enter your email and password.");return};do{let attempt = try machine.beginLogin();exchange(attempt){try IOSAccountAPI.login(email.trimmingCharacters(in:.whitespacesAndNewlines),password)}}catch{publish("Secure account storage is unavailable. Guest workouts are available.")}}
-    func refresh(){do{if let saved = try machine.beginRefresh(){exchange(machine.generation){try IOSAccountAPI.refresh(saved)}}}catch{publish("Couldn’t refresh the account. Guest workouts are available.")}}
-    func logout(){do{let old = try machine.logout();publish();if let old{network.async{[weak self] in do{try IOSAccountAPI.logout(old)}catch{DispatchQueue.main.async{self?.publish("Signed out on this phone. Server sign-out could not be confirmed.")}}}}}catch{publish("Couldn’t clear secure storage. Try again.")}}
+    func login(_ email:String,_ password:String){guard accountsEnabled else{return};guard !email.isEmpty && !password.isEmpty else{publish("Enter your email and password.");return};do{let attempt = try machine.beginLogin();exchange(attempt){try IOSAccountAPI.login(email.trimmingCharacters(in:.whitespacesAndNewlines),password)}}catch{publish("Secure account storage is unavailable. Guest workouts are available.")}}
+    func refresh(){guard accountsEnabled else{return};do{if let saved = try machine.beginRefresh(){exchange(machine.generation){try IOSAccountAPI.refresh(saved)}}}catch{publish("Couldn’t refresh the account. Guest workouts are available.")}}
+    func logout(){guard accountsEnabled else{return};do{let old = try machine.logout();publish();if let old{network.async{[weak self] in do{try IOSAccountAPI.logout(old)}catch{DispatchQueue.main.async{self?.publish("Signed out on this phone. Server sign-out could not be confirmed.")}}}}}catch{publish("Couldn’t clear secure storage. Try again.")}}
     deinit{timer?.invalidate()}
 }

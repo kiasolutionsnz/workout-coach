@@ -58,8 +58,8 @@ struct CoachSettingsView:View {
                 Toggle("Spoken cues",isOn:Binding(get:{model.voice},set:{model.saveSettings(voice:$0,frontCamera:model.frontCamera)}))
                 Toggle("Use front camera",isOn:Binding(get:{model.frontCamera},set:{model.saveSettings(voice:model.voice,frontCamera:$0)}))
             }
-            Section { Text("Workouts and camera processing work on your phone. An account is optional.") }
-            AccountView(model:account)
+            Section { Text(account.accountsEnabled ? "Workouts and camera processing work on your phone. An account is optional." : "Offline beta: workouts and camera processing stay on your phone. Accounts and cloud sync are not included.") }
+            if account.accountsEnabled { AccountView(model:account) }
             if let error = model.error { Text(error).foregroundStyle(.red) }
         }.navigationTitle("Settings")
     }

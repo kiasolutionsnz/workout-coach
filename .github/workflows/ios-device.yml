@@ -37,7 +37,7 @@ jobs:
           xcodebuild archive -workspace iosApp/WorkoutCoach.xcworkspace -scheme WorkoutCoach -configuration Release -destination 'generic/platform=iOS' -archivePath iosApp/build/WorkoutCoach.xcarchive CODE_SIGNING_ALLOWED=NO
           python3 - <<'PY'
           from pathlib import Path
-          import plistlib
+          import plistlib, subprocess
           archive = Path('iosApp/build/WorkoutCoach.xcarchive')
           app = archive / 'Products/Applications/WorkoutCoach.app'
           with (app / 'Info.plist').open('rb') as file:
@@ -46,6 +46,16 @@ jobs:
           assert info['CFBundleSupportedPlatforms'] == ['iPhoneOS']
           assert (app / info['CFBundleExecutable']).is_file()
           assert (app / 'pose_landmarker_lite.task').is_file()
+          assert info['WORKOUT_OFFLINE_BETA'] in (True, 'YES', 'true', '1')
+          assert info['CFBundleIcons']['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
+          with (app / 'PrivacyInfo.xcprivacy').open('rb') as file:
+              privacy = plistlib.load(file)
+          assert privacy['NSPrivacyTracking'] is False
+          imports = subprocess.check_output(['nm', '-u', str(app / info['CFBundleExecutable'])]).decode('utf-8')
+          print('Required-reason and cryptography import review:')
+          for line in imports.splitlines():
+              if any(name in line for name in ('UserDefaults', 'mach_absolute_time', 'systemUptime', 'stat', 'CCCrypt', 'EVP_', 'SHA256')):
+                  print(line.strip())
           print('Unsigned iPhone release archive verified; not installable or uploadable until distribution signing.')
           PY
       - name: Record architecture
