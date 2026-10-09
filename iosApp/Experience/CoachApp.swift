@@ -61,11 +61,9 @@ struct CoachSettingsView:View {
             }
             Section { Text(account.accountsEnabled ? "Workouts and camera processing work on your phone. An account is optional." : "Offline beta: workouts and camera processing stay on your phone. Accounts and cloud sync are not included.") }
             Section("Camera SDK privacy") {
-                if consent.allowed {
-                    Text("Camera SDK metrics consent is on. Google MediaPipe sends API usage and performance metrics to Google. Images and pose processing stay on your phone.")
-                    Button("Withdraw camera SDK consent",role:.destructive){consent.withdraw()}
-                    Text("Withdrawal stops further camera SDK use. It cannot retract metrics already sent to Google.")
-                } else { CameraSDKConsentView() }
+                Text(consent.allowed ? "Camera SDK metrics consent is on." : "Camera SDK metrics consent is off.")
+                NavigationLink("Camera SDK privacy and consent"){CameraSDKPrivacyView()}
+                if consent.allowed { Button("Withdraw camera SDK consent",role:.destructive){consent.withdraw()} }
             }
             if account.accountsEnabled { AccountView(model:account) }
             if let error = model.error { Text(error).foregroundStyle(.red) }

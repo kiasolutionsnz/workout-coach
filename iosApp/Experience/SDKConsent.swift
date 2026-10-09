@@ -33,8 +33,25 @@ struct CameraSDKConsentView: View {
             Link("Google MediaPipe privacy notice", destination: URL(string: "https://github.com/google-ai-edge/mediapipe#privacy-notice")!)
             Link("Workout Coach privacy policy", destination: URL(string: "https://github.com/kiasolutionsnz/workout-coach/blob/main/PRIVACY.md")!)
             Button("Allow SDK metrics and camera counting") { consent.accept(); declined = false; onAccept() }.buttonStyle(.borderedProminent)
-            Button("Not now") { declined = true }
+            Button("Not now") { declined = true }.buttonStyle(.borderless)
             if declined { Text("Camera counting remains off. You can go back to your routines or history.").accessibilityIdentifier("sdk-consent-declined") }
         }.accessibilityIdentifier("sdk-consent-disclosure")
+    }
+}
+
+struct CameraSDKPrivacyView: View {
+    @ObservedObject private var consent = IOSSDKConsent.shared
+    var body: some View {
+        ScrollView {
+            VStack(alignment:.leading,spacing:16) {
+                if consent.allowed {
+                    Text("Camera SDK metrics consent is on.").font(.headline)
+                    Text("Google MediaPipe sends API usage and performance metrics to Google. Images and pose processing stay on your phone.")
+                    Button("Withdraw camera SDK consent",role:.destructive){consent.withdraw()}.buttonStyle(.bordered)
+                    Text("Withdrawal stops further camera SDK use. It cannot retract metrics already sent to Google or guarantee cancellation of reporting already queued by the SDK.")
+                    Link("Workout Coach privacy policy",destination:URL(string:"https://github.com/kiasolutionsnz/workout-coach/blob/main/PRIVACY.md")!)
+                } else { CameraSDKConsentView() }
+            }.frame(maxWidth:.infinity,alignment:.leading).padding()
+        }.navigationTitle("Camera SDK privacy")
     }
 }

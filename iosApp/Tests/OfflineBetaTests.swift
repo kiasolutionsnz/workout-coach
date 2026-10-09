@@ -4,11 +4,12 @@ final class OfflineBetaUITests:XCTestCase {
     func testSDKMetricsConsentCanBeDeclinedAcceptedAndWithdrawn() {
         let app = XCUIApplication();app.launchArguments = ["--offline-beta","--reset-sdk-consent"];app.launch()
         XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:15));app.buttons["Settings"].tap()
+        app.buttons["Camera SDK privacy and consent"].tap()
         let allow = app.buttons["Allow SDK metrics and camera counting"]
         for _ in 0..<5 { if allow.isHittable { break };app.swipeUp() }
         XCTAssertTrue(allow.exists)
         app.buttons["Not now"].tap()
-        XCTAssertTrue(app.staticTexts["sdk-consent-declined"].exists)
+        XCTAssertTrue(app.staticTexts["sdk-consent-declined"].waitForExistence(timeout:5))
         XCTAssertFalse(app.buttons["Withdraw camera SDK consent"].exists)
         allow.tap()
         let withdraw = app.buttons["Withdraw camera SDK consent"]
