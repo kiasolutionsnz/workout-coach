@@ -19,8 +19,9 @@ class WorkoutUiTest {
             compose.waitUntil(15000){compose.onAllNodesWithText("Begin countdown").fetchSemanticsNodes().isNotEmpty()}
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
-            compose.waitUntil(5000){compose.onAllNodesWithText("Resume").fetchSemanticsNodes().isNotEmpty()}
+            compose.waitUntil(5000){compose.onAllNodes(hasText("Resume") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
             compose.onNodeWithText("Resume").performClick()
+            compose.waitUntil(5000){compose.onAllNodes(hasText("Begin countdown") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
             compose.onNodeWithText("Begin countdown").performClick()
             compose.waitUntil(15000){compose.onAllNodesWithText("Workout complete").fetchSemanticsNodes().isNotEmpty()}
             compose.waitUntil(5000){compose.onAllNodesWithText("Completed sets saved on this phone.").fetchSemanticsNodes().isNotEmpty()}
