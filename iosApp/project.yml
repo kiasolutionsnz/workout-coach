@@ -23,6 +23,8 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
         CODE_SIGNING_ALLOWED: NO
+        # Simulator-only local signing permits real Keychain tests without an Apple account.
+        CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]: Simulator.entitlements
         SWIFT_VERSION: 5.0
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

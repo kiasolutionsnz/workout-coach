@@ -3,7 +3,7 @@ import Security
 import Combine
 import WorkoutCore
 
-enum AccountError:Error {case unavailable}
+enum AccountError:Error {case unavailable;case secureStorage(OSStatus)}
 enum IOSAccountScope {static var namespace = "guest"}
 final class KeychainSessionStore:NSObject,SecureSessionStore {
     private let base:[String:Any] = [kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:"tech.kiasolutions.workoutcoach.session",kSecAttrAccount as String:"active"]
@@ -22,10 +22,11 @@ final class KeychainSessionStore:NSObject,SecureSessionStore {
         let status = SecItemUpdate(base as CFDictionary,update as CFDictionary)
         if status == errSecItemNotFound {
             var query = base;query[kSecValueData as String] = data;query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            guard SecItemAdd(query as CFDictionary,nil) == errSecSuccess else{throw AccountError.unavailable}
-        }else if status != errSecSuccess{throw AccountError.unavailable}
+            let added = SecItemAdd(query as CFDictionary,nil)
+            guard added == errSecSuccess else{throw AccountError.secureStorage(added)}
+        }else if status != errSecSuccess{throw AccountError.secureStorage(status)}
     }
-    func clear() throws {let status = SecItemDelete(base as CFDictionary);guard status == errSecSuccess || status == errSecItemNotFound else{throw AccountError.unavailable}}
+    func clear() throws {let status = SecItemDelete(base as CFDictionary);guard status == errSecSuccess || status == errSecItemNotFound else{throw AccountError.secureStorage(status)}}
 }
 enum IOSAccountAPI {
     static let base = (Bundle.main.object(forInfoDictionaryKey:"WORKOUT_API_BASE_URL") as? String) ?? "https://api.example.invalid"
