@@ -3,6 +3,7 @@ import AVFoundation
 import WorkoutCore
 
 struct WorkoutView:View {
+    @ObservedObject private var consent = IOSSDKConsent.shared
     @StateObject private var model:IOSWorkoutModel
     @StateObject private var camera:IOSCameraController
     @State private var permission = AVCaptureDevice.authorizationStatus(for:.video)
@@ -26,7 +27,9 @@ struct WorkoutView:View {
                     Text("\(state.partial) partial reps · \(run.movement.lowercased())")
                     if state.phase != .completed && state.phase != .cancelled {
                         Text(run.placement)
-                        if model.fixture { Text("Synthetic pose stream · agent verification") }else if permission == .authorized {
+                        if model.fixture { Text("Synthetic pose stream · agent verification") }else if !consent.allowed {
+                            CameraSDKConsentView(onAccept:refreshPermission)
+                        }else if permission == .authorized {
                             NativeCameraPreview(session:camera.session,mirrored:camera.previewMirrored).frame(height:200).overlay {
                                 Canvas { context,size in
                                     if let frame = model.frame, model.clock.nowMillis()-frame.capturedAtMillis <= 250 {
@@ -78,6 +81,7 @@ struct WorkoutView:View {
         }
         .confirmationDialog("End workout?",isPresented:$ending,titleVisibility:.visible){Button("End workout",role:.destructive){model.cancel()};Button("Cancel",role:.cancel){} }message:{Text("Completed sets stay saved. The current set will end incomplete.")}
         .onAppear { refreshPermission() }.onDisappear { camera.close();model.close() }
+        .onChange(of:consent.allowed){allowed in if allowed { refreshPermission() }else if !model.fixture { camera.stopForConsent();model.pause(true) } }
         .onChange(of:scenePhase){phase in if phase == .active { refreshPermission() }else { if !model.fixture {camera.suspend()};model.pause(true) } }
     }
     private func progress(_ run:WorkoutSession)->String {
@@ -89,5 +93,5 @@ struct WorkoutView:View {
         default:return run.progressText
         }
     }
-    private func refreshPermission(){permission = AVCaptureDevice.authorizationStatus(for:.video);if permission == .authorized && !model.fixture {camera.start()}}
+    private func refreshPermission(){permission = AVCaptureDevice.authorizationStatus(for:.video);if permission == .authorized && consent.allowed && !model.fixture {camera.start()}}
 }

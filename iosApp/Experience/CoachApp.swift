@@ -50,6 +50,7 @@ struct RoutineDetailView: View {
 }
 
 struct CoachSettingsView:View {
+    @ObservedObject private var consent = IOSSDKConsent.shared
     @ObservedObject var account:IOSAccountModel
     @ObservedObject var model:IOSAppModel
     var body:some View {
@@ -59,6 +60,13 @@ struct CoachSettingsView:View {
                 Toggle("Use front camera",isOn:Binding(get:{model.frontCamera},set:{model.saveSettings(voice:model.voice,frontCamera:$0)}))
             }
             Section { Text(account.accountsEnabled ? "Workouts and camera processing work on your phone. An account is optional." : "Offline beta: workouts and camera processing stay on your phone. Accounts and cloud sync are not included.") }
+            Section("Camera SDK privacy") {
+                if consent.allowed {
+                    Text("Camera SDK metrics consent is on. Google MediaPipe sends API usage and performance metrics to Google. Images and pose processing stay on your phone.")
+                    Button("Withdraw camera SDK consent",role:.destructive){consent.withdraw()}
+                    Text("Withdrawal stops further camera SDK use. It cannot retract metrics already sent to Google.")
+                } else { CameraSDKConsentView() }
+            }
             if account.accountsEnabled { AccountView(model:account) }
             if let error = model.error { Text(error).foregroundStyle(.red) }
         }.navigationTitle("Settings")

@@ -2,7 +2,7 @@ import AVFoundation
 import SwiftUI
 import WorkoutCore
 
-enum IOSCameraStatus: Equatable { case stopped, permissionRequired, starting, running, interrupted, unavailable }
+enum IOSCameraStatus: Equatable { case stopped, consentRequired, permissionRequired, starting, running, interrupted, unavailable }
 
 final class IOSCameraController: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     let session = AVCaptureSession()
@@ -12,6 +12,7 @@ final class IOSCameraController: NSObject, ObservableObject, AVCaptureVideoDataO
     private let onPose: (PoseFrame) -> Void
     private let onInterruption: () -> Void
     private let front: Bool
+    private let consent: () -> Bool
     @Published private(set) var previewMirrored = true
     private var observers: [NSObjectProtocol] = []
     private var processor: IOSPoseProcessor?
@@ -21,9 +22,10 @@ final class IOSCameraController: NSObject, ObservableObject, AVCaptureVideoDataO
     private var closed = false
     private var latestPose: PoseFrame?
     private var deliveryScheduled = false
-    init(clock: @escaping () -> Int64, onPose: @escaping (PoseFrame) -> Void = { _ in }, onInterruption: @escaping () -> Void = {}, front:Bool = true) {
-        self.clock = clock; self.onPose = onPose; self.onInterruption = onInterruption;self.front = front
+    init(clock: @escaping () -> Int64, onPose: @escaping (PoseFrame) -> Void = { _ in }, onInterruption: @escaping () -> Void = {}, front:Bool = true, consent: @escaping () -> Bool = { IOSSDKConsent.permitted }) {
+        self.clock = clock; self.onPose = onPose; self.onInterruption = onInterruption;self.front = front;self.consent = consent
         super.init()
+        observers.append(NotificationCenter.default.addObserver(forName:IOSSDKConsent.changed,object:nil,queue:.main) { [weak self] _ in if let self, !self.consent() { self.stopForConsent() } })
         observers.append(NotificationCenter.default.addObserver(forName:AVCaptureSession.wasInterruptedNotification,object:session,queue:.main) { [weak self] _ in self?.onInterruption();self?.publish(.interrupted) })
         observers.append(NotificationCenter.default.addObserver(forName:AVCaptureSession.runtimeErrorNotification,object:session,queue:.main) { [weak self] _ in self?.onInterruption();self?.publish(.unavailable) })
         observers.append(NotificationCenter.default.addObserver(forName:AVCaptureSession.interruptionEndedNotification,object:session,queue:.main) { [weak self] _ in self?.start() })
@@ -32,15 +34,16 @@ final class IOSCameraController: NSObject, ObservableObject, AVCaptureVideoDataO
     private func publish(_ value: IOSCameraStatus) { DispatchQueue.main.async { self.lock.lock();let stopped = self.closed;self.lock.unlock();if !stopped || value == .stopped { self.status = value } } }
     func start(permission: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)) {
         guard permission == .authorized else { publish(.permissionRequired); return }
+        guard consent() else { stopForConsent(); return }
         lock.lock(); let stopped = closed; lock.unlock()
         guard !stopped else { return }
         publish(.starting)
         queue.async { [self] in
             do {
+                guard consent() else { stopForConsent(); return }
                 if !configured {
                     guard let device = AVCaptureDevice.default(.builtInWideAngleCamera,for:.video,position:front ? .front:.back) ?? AVCaptureDevice.default(for:.video) else { publish(.unavailable); return }
                     DispatchQueue.main.async { self.previewMirrored = device.position == .front }
-                    processor = try IOSPoseProcessor()
                     session.beginConfiguration(); defer { session.commitConfiguration() }
                     session.sessionPreset = .medium
                     let input = try AVCaptureDeviceInput(device:device)
@@ -58,13 +61,16 @@ final class IOSCameraController: NSObject, ObservableObject, AVCaptureVideoDataO
                 }
                 lock.lock(); let stopped = closed; lock.unlock()
                 guard !stopped else { return }
+                guard consent() else { stopForConsent(); return }
+                if processor == nil { processor = try IOSPoseProcessor(consent:consent) }
+                guard consent() else { stopForConsent(); return }
                 session.startRunning(); publish(.running)
             } catch { publish(.unavailable) }
         }
     }
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         lock.lock(); let stopped = closed; lock.unlock()
-        guard !stopped else { return }
+        guard !stopped, consent() else { return }
         let seconds = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         guard seconds.isFinite, seconds >= 0, seconds < Double(Int64.max)/1000 else { return }
         let capture = Int64(seconds*1000)
@@ -76,13 +82,21 @@ final class IOSCameraController: NSObject, ObservableObject, AVCaptureVideoDataO
         } catch { session.stopRunning(); processor = nil; publish(.unavailable) }
     }
     func deliver(_ frame: PoseFrame) {
+        guard consent() else { return }
         lock.lock();if closed { lock.unlock();return };latestPose = frame
         if deliveryScheduled { lock.unlock(); return }
         deliveryScheduled = true; lock.unlock()
         DispatchQueue.main.async { [self] in
             lock.lock(); let frame = latestPose; latestPose = nil; deliveryScheduled = false; let stopped = closed; lock.unlock()
-            if !stopped, let frame { onPose(frame) }
+            if !stopped, consent(), let frame { onPose(frame) }
         }
+    }
+    func stopForConsent() {
+        lock.lock(); latestPose = nil; let stopped = closed; lock.unlock()
+        guard !stopped else { return }
+        onInterruption()
+        publish(.consentRequired)
+        queue.async { [self] in session.stopRunning(); processor = nil; offset = nil }
     }
     func close() {
         lock.lock(); if closed { lock.unlock(); return }; closed = true; latestPose = nil; lock.unlock()
@@ -106,6 +120,7 @@ final class PreviewSurface: UIView {
 }
 
 struct CameraSetupView: View {
+    @ObservedObject private var consent = IOSSDKConsent.shared
     @StateObject private var camera: IOSCameraController
     init(frontCamera:Bool = true) { let clock = MonotonicWorkoutClock();_camera = StateObject(wrappedValue:IOSCameraController(clock:{clock.nowMillis()},front:frontCamera)) }
     @State private var permission = AVCaptureDevice.authorizationStatus(for:.video)
@@ -113,7 +128,9 @@ struct CameraSetupView: View {
     var body: some View {
         VStack(spacing:16) {
             Text("Place your phone where your whole body is visible. Camera processing stays on your phone.")
-            if permission == .authorized {
+            if !consent.allowed {
+                CameraSDKConsentView(onAccept:refreshPermission)
+            } else if permission == .authorized {
                 NativeCameraPreview(session:camera.session,mirrored:camera.previewMirrored)
                 Text(camera.status == .unavailable ? "Camera unavailable. Close this screen and try again." : "Camera setup")
             } else {
@@ -125,7 +142,8 @@ struct CameraSetupView: View {
             }
         }.padding().navigationTitle("Camera setup")
         .onAppear { refreshPermission() }.onDisappear { camera.close() }
+        .onChange(of:consent.allowed) { allowed in if allowed { refreshPermission() } else { camera.stopForConsent() } }
         .onChange(of:scenePhase) { phase in if phase == .active { refreshPermission() } else { camera.suspend() } }
     }
-    private func refreshPermission() { permission = AVCaptureDevice.authorizationStatus(for:.video); if permission == .authorized { camera.start() } }
+    private func refreshPermission() { permission = AVCaptureDevice.authorizationStatus(for:.video); if permission == .authorized && consent.allowed { camera.start() } }
 }

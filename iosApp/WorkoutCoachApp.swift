@@ -3,6 +3,11 @@ import WorkoutCore
 
 @main
 struct WorkoutCoachApp: App {
+    init() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--reset-sdk-consent") { IOSSDKConsent.shared.withdraw() }
+        #endif
+    }
     var body: some Scene {
         WindowGroup {
             #if DEBUG

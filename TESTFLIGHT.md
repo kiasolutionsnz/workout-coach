@@ -6,6 +6,16 @@ Before signing/uploading, identify the Apple Developer team and the App Store Co
 
 Upload preparation also needs the app icon, beta description/support contact, accurate encryption and privacy declarations, and a clear list of working/incomplete features. Public source defaults to a nonfunctional example backend; account-enabled beta builds need an explicitly selected HTTPS backend and completed account checks. A guest-only beta must clearly exclude unfinished account/sync functionality.
 
-Follow the project testing sequence: preparation may proceed, but actual user testing starts after the agent acceptance and handoff milestone. No invitations are sent by the preflight workflow. External testers need TestFlight App Review before distribution; internal testers must have the appropriate App Store Connect access.
+The owner explicitly selected an early offline beta, bringing TestFlight user testing forward from the full MVP handoff milestone. The device build sets WORKOUT_OFFLINE_BETA=YES and hides account/sync controls without accessing account credentials. Camera counting requires explicit MediaPipe metrics consent; withdrawal is available in Settings. Agent checks must pass before upload. No invitations are sent by the preflight workflow. External testers need TestFlight App Review before distribution; internal testers must have the appropriate App Store Connect access.
 
 Apple references: [TestFlight](https://developer.apple.com/testflight/), [distribution](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases/), [app icons](https://developer.apple.com/help/app-store-connect/manage-app-information/add-an-app-icon/).
+
+## Signed upload workflow
+
+The manual `Upload offline beta to TestFlight` workflow is restricted to main and the `testflight` GitHub environment. It requires passing mobile verification and unsigned device preflight for the exact source revision, plus environment variable `TESTFLIGHT_PRIVACY_READY=true` after consent and disclosure verification.
+
+Configure environment secrets `APPLE_TEAM_ID`, `IOS_CERT_P12_BASE64`, `IOS_CERT_PASSWORD`, `IOS_PROFILE_BASE64`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_PRIVATE_KEY`. The certificate/private key must match an unexpired App Store distribution profile for this bundle. The helper checks team, bundle, distribution type and certificate match before installing temporary signing material. Credentials stay out of source, workflow inputs and public artifacts. Protect the environment with a required reviewer where supported; never run signing on pull requests.
+
+A Developer-role **team** App Store Connect API key can upload builds, but its role applies across team apps; it is not restricted to this app. New credentials require explicit owner approval for this scope. Prefer a dedicated key and do not reuse or revoke unrelated keys/certificates.
+
+The workflow archives, exports and validates the signed offline app, uploads through Apple's command-line tools, and removes temporary credentials. It publishes no IPA artifacts and sends no invitations. Successful upload still requires Apple processing and any required TestFlight review. No public App Store release is performed.
