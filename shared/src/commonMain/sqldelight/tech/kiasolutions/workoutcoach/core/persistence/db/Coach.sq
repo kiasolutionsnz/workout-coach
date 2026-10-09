@@ -1,0 +1,117 @@
+CREATE TABLE plan (
+  namespace TEXT NOT NULL,
+  id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0),
+  PRIMARY KEY(namespace, id)
+);
+CREATE TABLE exercise_block (
+  namespace TEXT NOT NULL,
+  plan_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL CHECK(ordinal >= 0),
+  exercise TEXT NOT NULL,
+  sets INTEGER NOT NULL CHECK(sets BETWEEN 1 AND 20),
+  goal_kind TEXT NOT NULL CHECK(goal_kind IN ('reps','duration')),
+  target INTEGER NOT NULL CHECK(target > 0),
+  hold_timing TEXT NOT NULL,
+  rest_seconds INTEGER NOT NULL CHECK(rest_seconds BETWEEN 0 AND 3600),
+  limb_mode TEXT NOT NULL,
+  PRIMARY KEY(namespace, plan_id, ordinal),
+  FOREIGN KEY(namespace, plan_id) REFERENCES plan(namespace,id) ON DELETE CASCADE
+);
+CREATE TABLE workout (
+  namespace TEXT NOT NULL,
+  id TEXT NOT NULL,
+  routine_name TEXT NOT NULL,
+  started_epoch_ms INTEGER NOT NULL CHECK(started_epoch_ms >= 0),
+  phase TEXT NOT NULL,
+  block_index INTEGER NOT NULL DEFAULT 0,
+  set_index INTEGER NOT NULL DEFAULT 0,
+  remaining_ms INTEGER NOT NULL DEFAULT 0 CHECK(remaining_ms >= 0),
+  PRIMARY KEY(namespace,id)
+);
+CREATE TABLE workout_set (
+  namespace TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL,
+  exercise TEXT NOT NULL,
+  accepted INTEGER NOT NULL CHECK(accepted >= 0),
+  partial INTEGER NOT NULL CHECK(partial >= 0),
+  elapsed_ms INTEGER NOT NULL CHECK(elapsed_ms >= 0),
+  valid_hold_ms INTEGER NOT NULL CHECK(valid_hold_ms >= 0),
+  reached_goal INTEGER NOT NULL CHECK(reached_goal IN (0,1)),
+  target INTEGER,
+  hold_timing TEXT,
+  PRIMARY KEY(namespace,session_id,ordinal),
+  FOREIGN KEY(namespace,session_id) REFERENCES workout(namespace,id) ON DELETE CASCADE
+);
+CREATE TABLE rep (
+  namespace TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  set_ordinal INTEGER NOT NULL,
+  ordinal INTEGER NOT NULL,
+  side TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL CHECK(duration_ms >= 0),
+  is_full INTEGER NOT NULL CHECK(is_full IN (0,1)),
+  PRIMARY KEY(namespace,session_id,set_ordinal,ordinal),
+  FOREIGN KEY(namespace,session_id,set_ordinal) REFERENCES workout_set(namespace,session_id,ordinal) ON DELETE CASCADE
+);
+CREATE TABLE preference (
+  namespace TEXT NOT NULL,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  PRIMARY KEY(namespace,key)
+);
+CREATE TABLE outbox (
+  namespace TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('plan','workout','delete')),
+  revision INTEGER NOT NULL CHECK(revision > 0),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(namespace,record_id,kind)
+);
+CREATE INDEX workout_namespace_started ON workout(namespace,started_epoch_ms);
+
+putPlan:
+INSERT OR IGNORE INTO plan(namespace,id,name,revision) VALUES (?,?,?,?);
+updatePlan:
+UPDATE plan SET name=?,revision=? WHERE namespace=? AND id=?;
+deleteBlocks:
+DELETE FROM exercise_block WHERE namespace=? AND plan_id=?;
+putBlock:
+INSERT INTO exercise_block VALUES (?,?,?,?,?,?,?,?,?,?);
+plans:
+SELECT * FROM plan WHERE namespace=? ORDER BY name,id;
+blocks:
+SELECT * FROM exercise_block WHERE namespace=? AND plan_id=? ORDER BY ordinal;
+putWorkout:
+INSERT OR IGNORE INTO workout VALUES (?,?,?,?,?,?,?,?);
+updateWorkout:
+UPDATE workout SET phase=?,block_index=?,set_index=?,remaining_ms=? WHERE namespace=? AND id=?;
+workouts:
+SELECT * FROM workout WHERE namespace=? ORDER BY started_epoch_ms DESC,id;
+putSet:
+INSERT OR IGNORE INTO workout_set VALUES (?,?,?,?,?,?,?,?,?,?,?);
+putRep:
+INSERT OR IGNORE INTO rep VALUES (?,?,?,?,?,?,?);
+sets:
+SELECT * FROM workout_set WHERE namespace=? AND session_id=? ORDER BY ordinal;
+reps:
+SELECT * FROM rep WHERE namespace=? AND session_id=? AND set_ordinal=? ORDER BY ordinal;
+putPreference:
+INSERT OR IGNORE INTO preference VALUES (?,?,?);
+updatePreference:
+UPDATE preference SET value=? WHERE namespace=? AND key=?;
+preferences:
+SELECT * FROM preference WHERE namespace=? ORDER BY key;
+putOutbox:
+INSERT OR IGNORE INTO outbox(namespace,record_id,kind,revision) VALUES (?,?,?,?);
+updateOutbox:
+UPDATE outbox SET revision=? WHERE namespace=? AND record_id=? AND kind=?;
+pending:
+SELECT * FROM outbox WHERE namespace=? ORDER BY kind,record_id;
+
+deleteSession:
+DELETE FROM workout WHERE namespace=? AND id=?;
+removeUpload:
+DELETE FROM outbox WHERE namespace=? AND record_id=? AND kind='workout';

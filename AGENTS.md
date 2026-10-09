@@ -1,0 +1,3 @@
+# Development instructions
+
+Keep native SwiftUI/Compose UI and Kotlin Multiplatform core; camera/video/pose processing stays local. Guest workouts remain offline. Do not include real credentials, server keys, operational inventories or private account fixtures in code, logs, reports or build artifacts. Native iOS verification requires macOS/Xcode. Record actual evidence and never infer iOS success from Android checks. Human physical-device/participant testing remains a later milestone. Do not publish store builds or deploy backends without explicit owner authority. Public pull requests use ephemeral hosted runners with read-only permissions; never production-connected self-hosted machines or pull_request_target execution of untrusted code.

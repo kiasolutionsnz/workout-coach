@@ -1,0 +1,2 @@
+ALTER TABLE workout_set ADD COLUMN target INTEGER;
+ALTER TABLE workout_set ADD COLUMN hold_timing TEXT;

@@ -1,0 +1,65 @@
+name: WorkoutCoach
+options:
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  WorkoutCoach:
+    type: application
+    platform: iOS
+    sources:
+      - path: WorkoutCoachApp.swift
+      - path: Camera
+      - path: Experience
+      - path: Speech
+      - path: Assets
+        buildPhase: resources
+    dependencies:
+      - framework: ../shared/build/bin/iosSimulatorArm64/debugFramework/WorkoutCore.framework
+      - sdk: libsqlite3.tbd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.kiasolutions.workoutcoach
+        GENERATE_INFOPLIST_FILE: YES
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        CODE_SIGNING_ALLOWED: NO
+        SWIFT_VERSION: 5.0
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "Workout Coach"
+        WORKOUT_API_BASE_URL: https://api.example.invalid
+        INFOPLIST_KEY_WORKOUT_API_BASE_URL: "$(WORKOUT_API_BASE_URL)"
+        INFOPLIST_KEY_NSCameraUsageDescription: "Use your camera to count exercise repetitions on your phone."
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    scheme:
+      testTargets:
+        - WorkoutCoachUITests
+        - WorkoutCoachUnitTests
+  WorkoutCoachUnitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [UnitTests]
+    dependencies:
+      - target: WorkoutCoach
+      - framework: ../shared/build/bin/iosSimulatorArm64/debugFramework/WorkoutCore.framework
+        link: false
+      - sdk: libsqlite3.tbd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.kiasolutions.workoutcoach.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        # Hosted tests resolve static SDK symbols through their application loader.
+        # Inheriting Pods' -ObjC pulls a second MediaPipe calculator registry into the process.
+        OTHER_LDFLAGS: ""
+  WorkoutCoachUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: WorkoutCoach
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.kiasolutions.workoutcoach.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO

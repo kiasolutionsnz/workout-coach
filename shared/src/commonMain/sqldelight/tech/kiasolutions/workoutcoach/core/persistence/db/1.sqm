@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS workout_namespace_started ON workout(namespace,started_epoch_ms);
+

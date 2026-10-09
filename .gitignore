@@ -1,0 +1,26 @@
+.gradle/
+.local/
+.kotlin/
+**/build/
+local.properties
+.env*
+!.env.example
+.DS_Store
+*.xcuserstate
+iosApp/*.xcodeproj/
+iosApp/*.xcworkspace/
+iosApp/Pods/
+
+# Operational secrets, signing inputs, account fixtures and local databases
+**/secrets/
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.dpapi
+*.enc
+*.db
+*.sqlite*
+**/auth-fixture.json
+**/nativeAccounts.json
