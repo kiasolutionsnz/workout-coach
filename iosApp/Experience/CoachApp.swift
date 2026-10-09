@@ -60,12 +60,12 @@ struct CoachSettingsView:View {
                 Toggle("Use front camera",isOn:Binding(get:{model.frontCamera},set:{model.saveSettings(voice:model.voice,frontCamera:$0)}))
             }
             Section { Text(account.accountsEnabled ? "Workouts and camera processing work on your phone. An account is optional." : "Offline beta: workouts and camera processing stay on your phone. Accounts and cloud sync are not included.") }
+            if account.accountsEnabled { AccountView(model:account) }
             Section("Camera SDK privacy") {
                 Text(consent.allowed ? "Camera SDK metrics consent is on." : "Camera SDK metrics consent is off.")
                 NavigationLink("Camera SDK privacy and consent"){CameraSDKPrivacyView()}
                 if consent.allowed { Button("Withdraw camera SDK consent",role:.destructive){consent.withdraw()} }
             }
-            if account.accountsEnabled { AccountView(model:account) }
             if let error = model.error { Text(error).foregroundStyle(.red) }
         }.navigationTitle("Settings")
     }
