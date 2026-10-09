@@ -1,0 +1,52 @@
+name: iOS device archive preflight
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  device-archive:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          gradle-version: "9.3.1"
+      - name: Check source and qualified model assets
+        run: |
+          python3 scripts/check_repository.py
+          python3 scripts/check_model_assets.py
+      - name: Build release framework for iPhone
+        run: ./gradlew :shared:linkReleaseFrameworkIosArm64 --stacktrace
+      - name: Generate device workspace
+        run: |
+          python3 scripts/prepare_ios_device_project.py
+          brew install xcodegen
+          xcodegen generate --spec iosApp/project-device.generated.yml --project iosApp
+          if ! command -v pod >/dev/null; then brew install cocoapods; fi
+          cd iosApp
+          pod install
+      - name: Verify unsigned device archive
+        run: |
+          xcodebuild archive -workspace iosApp/WorkoutCoach.xcworkspace -scheme WorkoutCoach -configuration Release -destination 'generic/platform=iOS' -archivePath iosApp/build/WorkoutCoach.xcarchive CODE_SIGNING_ALLOWED=NO
+          python3 - <<'PY'
+          from pathlib import Path
+          import plistlib
+          archive = Path('iosApp/build/WorkoutCoach.xcarchive')
+          app = archive / 'Products/Applications/WorkoutCoach.app'
+          with (app / 'Info.plist').open('rb') as file:
+              info = plistlib.load(file)
+          assert info['CFBundleIdentifier'] == 'tech.kiasolutions.workoutcoach'
+          assert info['CFBundleSupportedPlatforms'] == ['iPhoneOS']
+          assert (app / info['CFBundleExecutable']).is_file()
+          assert (app / 'pose_landmarker_lite.task').is_file()
+          print('Unsigned iPhone release archive verified; not installable or uploadable until distribution signing.')
+          PY
+      - name: Record architecture
+        run: file iosApp/build/WorkoutCoach.xcarchive/Products/Applications/WorkoutCoach.app/WorkoutCoach

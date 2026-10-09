@@ -10,6 +10,7 @@ local.properties
 iosApp/*.xcodeproj/
 iosApp/*.xcworkspace/
 iosApp/Pods/
+iosApp/project-device.generated.yml
 
 # Operational secrets, signing inputs, account fixtures and local databases
 **/secrets/
