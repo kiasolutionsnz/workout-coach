@@ -28,7 +28,7 @@ struct CameraSDKConsentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Camera counting and SDK metrics").font(.headline)
-            Text("Camera counting uses Google MediaPipe. Images and pose processing stay on your phone. Google's SDK sends API performance and usage metrics to Google. Allow this to enable camera counting.")
+            Text("Camera counting uses Google MediaPipe. Images and pose processing stay on your phone. Google's SDK sends API performance and usage metrics to Google to measure, debug and improve MediaPipe. Allow this to enable camera counting.")
             Text("This is optional. Without consent, you can still edit routines and view, export or delete history. You can withdraw consent in Settings to stop further camera SDK use. Withdrawal cannot retract metrics already sent to Google.")
             Link("Google MediaPipe privacy notice", destination: URL(string: "https://github.com/google-ai-edge/mediapipe#privacy-notice")!)
             Link("Workout Coach privacy policy", destination: URL(string: "https://github.com/kiasolutionsnz/workout-coach/blob/main/PRIVACY.md")!)
