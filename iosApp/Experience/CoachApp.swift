@@ -24,7 +24,7 @@ struct CoachHomeContent: View {
                     if let error = model.error { Section { Text(error).foregroundStyle(.red);Button("Try again"){model.load()} } }
                     Section("Your routines") {
                         ForEach(model.routines,id:\.id) { routine in
-                            NavigationLink(value:VoiceRoute.routine(routine.id)) label: {
+                            NavigationLink(value:VoiceRoute.routine(routine.id)) {
                                 VStack(alignment:.leading,spacing:6) { Text(routine.name).font(.headline);Text("\(routine.blocks.count) exercises").font(.subheadline).foregroundStyle(.secondary) }
                             }
                         }
