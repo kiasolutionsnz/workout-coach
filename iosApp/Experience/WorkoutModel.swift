@@ -58,6 +58,10 @@ final class IOSWorkoutModel:ObservableObject {
         run?.tick();speech?.poll();update()
     }
     func pose(_ frame:PoseFrame) { self.frame = frame;run?.framing(frame:frame);update() }
+    func announceVoice(_ text:String) {
+        guard voiceEnabled, let run else { return }
+        _ = speaker?.speak(cue:SpeechCue(id:"voice-\(UUID().uuidString)",text:text,priority:.timing,expiresAtMillis:clock.nowMillis()+8000))
+    }
     func begin() { run?.begin();update() }
     func pause(_ interrupted:Bool = false) { run?.pause(interrupted:interrupted);speech?.pause();update() }
     func resume() { run?.resume();if voiceEnabled { speech?.resume() };update() }

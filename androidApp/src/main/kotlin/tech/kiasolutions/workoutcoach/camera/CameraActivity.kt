@@ -64,14 +64,14 @@ class CameraActivity:ComponentActivity(){
                         if(!model.saving && model.error==null){
                             if(command!=VoiceAction.REQUEST_END && command!=VoiceAction.CONFIRM_END)confirmation.cancel()
                             when(command){
-                                VoiceAction.START->if(state.phase==WorkoutPhase.PREPARING){model.begin();voiceNotice="Move into position for the countdown."}
-                                VoiceAction.PAUSE->{model.pause();voiceNotice="Workout paused."}
-                                VoiceAction.RESUME->if(run.reliable){model.resume();voiceNotice="Resumed."}else{voiceNotice="Move into view before resuming."}
+                                VoiceAction.START->if(state.phase==WorkoutPhase.PREPARING){model.begin();voiceNotice="Move into position for the countdown.";model.announceVoice("Start armed. Move into position.")}
+                                VoiceAction.PAUSE->{model.pause();voiceNotice="Workout paused.";model.announceVoice("Paused.")}
+                                VoiceAction.RESUME->if(run.reliable){model.resume();voiceNotice="Resumed.";model.announceVoice("Resumed.")}else{voiceNotice="Move into view before resuming.";model.announceVoice(voiceNotice)}
                                 VoiceAction.SKIP_REST->if(state.phase==WorkoutPhase.RESTING)model.skipRest()
-                                VoiceAction.END_SET->if(state.phase in listOf(WorkoutPhase.ACTIVE_SET,WorkoutPhase.PAUSED,WorkoutPhase.INTERRUPTED)){model.endSet();voiceNotice="Set ended incomplete."}
-                                VoiceAction.REQUEST_END->{confirmation.request(model.clock.nowMillis());voiceNotice="End workout? Say Coach confirm end within eight seconds, or Coach cancel."}
+                                VoiceAction.END_SET->if(state.phase in listOf(WorkoutPhase.ACTIVE_SET,WorkoutPhase.PAUSED,WorkoutPhase.INTERRUPTED)){model.endSet();voiceNotice="Set ended incomplete.";model.announceVoice(voiceNotice)}
+                                VoiceAction.REQUEST_END->{confirmation.request(model.clock.nowMillis());model.announceVoice("End requested. Please confirm within eight seconds, or cancel.");voiceNotice="End workout? Say Coach confirm end within eight seconds, or Coach cancel."}
                                 VoiceAction.CONFIRM_END->if(confirmation.confirm(model.clock.nowMillis())){model.endSet();model.cancel()}else{voiceNotice="No current end request. Workout kept."}
-                                VoiceAction.CANCEL_END->{confirmation.cancel();voiceNotice="Workout kept."}
+                                VoiceAction.CANCEL_END->{confirmation.cancel();voiceNotice="Workout kept.";model.announceVoice(voiceNotice)}
                                 else->voiceNotice="App navigation is available after leaving the workout."
                             }
                         }

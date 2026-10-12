@@ -56,6 +56,7 @@ class WorkoutModel(application:Application):AndroidViewModel(application){
         }
     }
     fun pose(frame:PoseFrame){session?.framing(frame);update()}
+    fun announceVoice(text:String){if(voiceEnabled)speaker?.speak(SpeechCue("voice-${java.util.UUID.randomUUID()}",text,CuePriority.TIMING,clock.nowMillis()+8000))}
     fun begin(){session?.begin();update()}
     fun pause(interrupted:Boolean=false){if(session==null && interrupted)interruptedBeforeLoad=true;session?.pause(interrupted);speech?.pause();update()}
     fun resume(){session?.resume();if(voiceEnabled)speech?.resume();update()}

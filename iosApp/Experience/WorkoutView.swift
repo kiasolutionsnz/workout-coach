@@ -95,14 +95,14 @@ struct WorkoutView:View {
         let phase = run.state.phase
         if command != .confirmEnd && command != .requestEnd { endConfirmation.cancel() }
         switch command {
-        case .start: if phase == .preparing { model.begin();voiceNotice = "Move into position for the countdown." }
-        case .pause: model.pause();voiceNotice = "Workout paused."
-        case .resume: if run.reliable { model.resume();voiceNotice = "Resumed." } else { voiceNotice = "Move into view before resuming." }
+        case .start: if phase == .preparing { model.begin();voiceNotice = "Move into position for the countdown.";model.announceVoice("Start armed. Move into position.") }
+        case .pause: model.pause();voiceNotice = "Workout paused.";model.announceVoice("Paused.")
+        case .resume: if run.reliable { model.resume();voiceNotice = "Resumed.";model.announceVoice("Resumed.") } else { voiceNotice = "Move into view before resuming.";model.announceVoice(voiceNotice) }
         case .skipRest: if phase == .resting { model.skipRest() }
-        case .endSet: if phase == .activeSet || phase == .paused || phase == .interrupted { model.endSet();voiceNotice = "Set ended incomplete." }
-        case .requestEnd: if phase != .completed && phase != .cancelled { endConfirmation.request(nowMillis:model.clock.nowMillis());voiceNotice = "End workout? Say Coach confirm end within eight seconds, or Coach cancel." }
+        case .endSet: if phase == .activeSet || phase == .paused || phase == .interrupted { model.endSet();voiceNotice = "Set ended incomplete.";model.announceVoice(voiceNotice) }
+        case .requestEnd: if phase != .completed && phase != .cancelled { endConfirmation.request(nowMillis:model.clock.nowMillis());model.announceVoice("End requested. Please confirm within eight seconds, or cancel.");voiceNotice = "End workout? Say Coach confirm end within eight seconds, or Coach cancel." }
         case .confirmEnd: if endConfirmation.confirm(nowMillis:model.clock.nowMillis()) { model.cancel();voiceControl.disable() } else { voiceNotice = "No current end request. Workout kept." }
-        case .cancelEnd: endConfirmation.cancel();voiceNotice = "Workout kept."
+        case .cancelEnd: endConfirmation.cancel();voiceNotice = "Workout kept.";model.announceVoice(voiceNotice)
         default: voiceNotice = "App navigation is available after leaving the workout."
         }
     }
