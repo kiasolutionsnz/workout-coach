@@ -92,7 +92,7 @@ class CameraActivity:ComponentActivity(){
                 if(run!=null){
                     val state=run.state
                     when(state.phase){
-                        WorkoutPhase.PREPARING->Button(onClick={model.begin()},enabled=!run.startArmed && !model.saving){Text(if(run.startArmed) "Waiting for position…" else "Start workout")}
+                        WorkoutPhase.PREPARING->Button(onClick={model.begin()},enabled=!run.startArmed && !model.saving){Text(if(run.startArmed) "Waiting for position..." else "Start workout")}
                         WorkoutPhase.PAUSED,WorkoutPhase.INTERRUPTED->Button(onClick={model.resume()},enabled=run.reliable){Text("Resume")}
                         WorkoutPhase.RESTING->Button(onClick={model.skipRest()}){Text("Skip rest")}
                         WorkoutPhase.SET_COMPLETE->Text(if(model.saving)"Saving setâ€¦"else "Set complete")

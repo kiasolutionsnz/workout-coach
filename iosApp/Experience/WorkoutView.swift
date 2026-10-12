@@ -66,7 +66,7 @@ struct WorkoutView:View {
             if let run = model.run {
                 VStack(spacing:8) {
                     switch run.state.phase {
-                    case .preparing:Button(run.startArmed ? "Waiting for position…" : "Start workout"){model.begin()}.disabled(run.startArmed || model.saving)
+                    case .preparing:Button(run.startArmed ? "Waiting for position..." : "Start workout"){model.begin()}.disabled(run.startArmed || model.saving)
                     case .paused,.interrupted:Button("Resume"){model.resume()}.disabled(!run.reliable)
                     case .resting:Button("Skip rest"){model.skipRest()}
                     case .setComplete:Text(model.saving ? "Saving setâ€¦" : "Set complete")
