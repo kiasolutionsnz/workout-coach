@@ -2,7 +2,7 @@ import XCTest
 final class WorkoutTests:XCTestCase {
     func testSyntheticWorkoutProgressesHandsFreeAndSavesBothSets(){
         let app = XCUIApplication();app.launchArguments = ["--workout-fixture"];app.launch()
-        let begin = app.buttons["Begin countdown"];XCTAssertTrue(begin.waitForExistence(timeout:15))
+        let begin = app.buttons["Start workout"];XCTAssertTrue(begin.waitForExistence(timeout:15))
         XCUIDevice.shared.press(.home);app.activate()
         let resume = app.buttons["Resume"];XCTAssertTrue(resume.waitForExistence(timeout:10));resume.tap()
         let enabled = NSPredicate(format:"enabled == true")

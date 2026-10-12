@@ -27,6 +27,7 @@ struct WorkoutView:View {
                     Text("\(state.partial) partial reps · \(run.movement.lowercased())")
                     if state.phase != .completed && state.phase != .cancelled {
                         Text(run.placement)
+                        if state.phase == .preparing && run.startArmed { Text("Move into position. Countdown starts after two seconds of stable tracking.") }
                         if model.fixture { Text("Synthetic pose stream · agent verification") }else if !consent.allowed {
                             CameraSDKConsentView(onAccept:refreshPermission)
                         }else if permission == .authorized {
@@ -65,7 +66,7 @@ struct WorkoutView:View {
             if let run = model.run {
                 VStack(spacing:8) {
                     switch run.state.phase {
-                    case .preparing:Button("Begin countdown"){model.begin()}.disabled(!run.reliable || model.saving)
+                    case .preparing:Button(run.startArmed ? "Waiting for position�" : "Start workout"){model.begin()}.disabled(run.startArmed || model.saving)
                     case .paused,.interrupted:Button("Resume"){model.resume()}.disabled(!run.reliable)
                     case .resting:Button("Skip rest"){model.skipRest()}
                     case .setComplete:Text(model.saving ? "Saving set…" : "Set complete")

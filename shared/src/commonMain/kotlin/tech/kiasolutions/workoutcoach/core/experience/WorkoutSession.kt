@@ -17,7 +17,8 @@ class WorkoutSession(val plan:WorkoutPlan,val id:String,val startedEpochMillis:L
     private var configuredSet=-1
     private var automatic=false
     private var savedProgressionPending=false
-    private var preparingSince=clock.nowMillis()
+    private var reliableSince:Long?=null
+    val startArmed:Boolean get()=automatic
     private val events=mutableListOf<WorkoutEvent>()
     private val reps=mutableListOf<StoredRep>()
     private val saved=mutableListOf<StoredSet>()
@@ -43,7 +44,7 @@ class WorkoutSession(val plan:WorkoutPlan,val id:String,val startedEpochMillis:L
     private fun collect(){
         engine.drainEvents().forEach{event->
             events+=event
-            if(event is WorkoutEvent.Ready)preparingSince=clock.nowMillis()
+            if(event is WorkoutEvent.Ready)reliableSince=null
             if(event is WorkoutEvent.SetStarted){resetDetection();reps.clear()}
             if(event is WorkoutEvent.SetCompleted){
                 val ordinal=plan.blocks.take(state.blockIndex).sumOf{it.sets}+state.setIndex
@@ -52,7 +53,7 @@ class WorkoutSession(val plan:WorkoutPlan,val id:String,val startedEpochMillis:L
         }
         if(configuredBlock!=state.blockIndex || configuredSet!=state.setIndex){configuredBlock=state.blockIndex;configuredSet=state.setIndex;resetDetection()}
     }
-    private fun resetDetection(){tracker.reset();selector.reset();analyzer=null;reliable=false;movement="UNKNOWN";cue=placement}
+    private fun resetDetection(){reliableSince=null;tracker.reset();selector.reset();analyzer=null;reliable=false;movement="UNKNOWN";cue=placement}
     private fun makeAnalyzer(side:Side)=when(block.exercise){
         ExerciseId.SQUAT->SquatAnalyzer(side=side)
         ExerciseId.PUSH_UP->PushUpAnalyzer(side=side)
@@ -71,10 +72,13 @@ class WorkoutSession(val plan:WorkoutPlan,val id:String,val startedEpochMillis:L
         }
         val changed=selector.observe(visible(Side.LEFT),visible(Side.RIGHT))
         val side=selector.selected
-        if(side==null){reliable=false;engine.trackingChanged(false);collect();return}
+        if(side==null){reliableSince=null;reliable=false;engine.trackingChanged(false);collect();return}
+        if(changed || pose.cycleReset)reliableSince=null
         if(changed || analyzer==null)analyzer=makeAnalyzer(side)
         val result=analyzer!!.analyze(pose)
-        reliable=result.reliable;movement=result.phase.name;cue=result.cue ?: if(reliable)"Position visible" else placement
+        reliable=result.reliable
+        if(!reliable)reliableSince=null else if(reliableSince==null)reliableSince=clock.nowMillis()
+        movement=result.phase.name;cue=result.cue ?: if(reliable)"Position visible" else placement
         engine.trackingChanged(reliable)
         if(state.phase==WorkoutPhase.ACTIVE_SET){
             result.reps.forEach{rep->
@@ -87,14 +91,20 @@ class WorkoutSession(val plan:WorkoutPlan,val id:String,val startedEpochMillis:L
             engine.holdObservation(pose.atMillis,result.holdValid)
         }
         collect()
-        if(automatic && state.phase==WorkoutPhase.PREPARING && reliable && clock.nowMillis()-preparingSince>=2000)begin()
+        startWhenReady()
     }
     fun tick(){
-        if(tracker.expire(clock.nowMillis())){reliable=false;cue=placement;analyzer?.reset();engine.trackingChanged(false)}
+        if(tracker.expire(clock.nowMillis())){reliableSince=null;reliable=false;cue=placement;analyzer?.reset();engine.trackingChanged(false)}
         engine.tick();collect()
-        if(automatic && state.phase==WorkoutPhase.PREPARING && reliable && clock.nowMillis()-preparingSince>=2000)begin()
+        startWhenReady()
     }
-    fun begin(){if(state.phase==WorkoutPhase.PREPARING && reliable){automatic=true;engine.startCountdown();collect()}}
+    /** Arm at the phone; countdown waits for two uninterrupted seconds of current tracking. */
+    fun begin(){if(state.phase==WorkoutPhase.PREPARING){automatic=true;startWhenReady()}}
+    private fun startWhenReady(){
+        if(tracker.expire(clock.nowMillis())){reliableSince=null;return}
+        val since=reliableSince ?: return
+        if(automatic && state.phase==WorkoutPhase.PREPARING && reliable && clock.nowMillis()-since>=2000){engine.startCountdown();collect()}
+    }
     fun pause(interrupted:Boolean){engine.pause(interrupted);resetDetection();collect()}
     fun resume(){if(state.phase in listOf(WorkoutPhase.PAUSED,WorkoutPhase.INTERRUPTED) && reliable){
         engine.resume();resetDetection();collect()

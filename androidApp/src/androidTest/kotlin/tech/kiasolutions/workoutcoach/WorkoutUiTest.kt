@@ -16,13 +16,13 @@ class WorkoutUiTest {
     @Test fun syntheticPoseAndVirtualClockRunTwoSetsHandsFreeAndPersist(){
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         ActivityScenario.launch<CameraActivity>(Intent(context,CameraActivity::class.java).putExtra("debugFixture",true)).use{scenario->
-            compose.waitUntil(15000){compose.onAllNodesWithText("Begin countdown").fetchSemanticsNodes().isNotEmpty()}
+            compose.waitUntil(15000){compose.onAllNodesWithText("Start workout").fetchSemanticsNodes().isNotEmpty()}
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
             scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
             compose.waitUntil(5000){compose.onAllNodes(hasText("Resume") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
             compose.onNodeWithText("Resume").performClick()
-            compose.waitUntil(5000){compose.onAllNodes(hasText("Begin countdown") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
-            compose.onNodeWithText("Begin countdown").performClick()
+            compose.waitUntil(5000){compose.onAllNodes(hasText("Start workout") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
+            compose.onNodeWithText("Start workout").performClick()
             compose.waitUntil(15000){compose.onAllNodesWithText("Workout complete").fetchSemanticsNodes().isNotEmpty()}
             compose.waitUntil(5000){compose.onAllNodesWithText("Completed sets saved on this phone.").fetchSemanticsNodes().isNotEmpty()}
             InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG,100,java.io.FileOutputStream(java.io.File(context.getExternalFilesDir(null),"workout-complete.png")))

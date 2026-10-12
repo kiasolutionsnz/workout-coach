@@ -56,6 +56,7 @@ class CameraActivity:ComponentActivity(){
                     Text("${state.partial} partial reps · ${run.movement.lowercase()}")
                     if(state.phase !in listOf(WorkoutPhase.COMPLETED,WorkoutPhase.CANCELLED)){
                         Text(run.placement)
+                    if(run.state.phase==WorkoutPhase.PREPARING && run.startArmed)Text("Move into position. Countdown starts after two seconds of stable tracking.")
                         if(model.fixture){Text("Synthetic pose stream · agent verification")}else if(!permission){
                             Text(if(denied)"Camera access is off. Enable it in Settings."else "Enable camera access to check your position.")
                             Button(onClick={if(denied)startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))else request.launch(Manifest.permission.CAMERA)}){Text(if(denied)"Open Settings"else "Enable camera")}
@@ -91,7 +92,7 @@ class CameraActivity:ComponentActivity(){
                 if(run!=null){
                     val state=run.state
                     when(state.phase){
-                        WorkoutPhase.PREPARING->Button(onClick={model.begin()},enabled=run.reliable && !model.saving){Text("Begin countdown")}
+                        WorkoutPhase.PREPARING->Button(onClick={model.begin()},enabled=!run.startArmed && !model.saving){Text(if(run.startArmed) "Waiting for position�" else "Start workout")}
                         WorkoutPhase.PAUSED,WorkoutPhase.INTERRUPTED->Button(onClick={model.resume()},enabled=run.reliable){Text("Resume")}
                         WorkoutPhase.RESTING->Button(onClick={model.skipRest()}){Text("Skip rest")}
                         WorkoutPhase.SET_COMPLETE->Text(if(model.saving)"Saving set…"else "Set complete")
