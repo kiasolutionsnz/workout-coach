@@ -25,15 +25,15 @@ final class IOSSpeaker:NSObject,CueSink,AVSpeechSynthesizerDelegate {
         guard !closed,available,let voice else { return false }
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback,mode:.spokenAudio,options:[.duckOthers]);try session.setActive(true)
+            if !IOSVoiceControl.capturing { try session.setCategory(.playback,mode:.spokenAudio,options:[.duckOthers]) };try session.setActive(true)
             let utterance = AVSpeechUtterance(string:cue.text);utterance.voice = voice;utterance.rate = AVSpeechUtteranceDefaultSpeechRate
             identities[ObjectIdentifier(utterance)] = cue.id;synthesizer.speak(utterance);return true
         } catch { available = false;return false }
     }
-    func stop() { identities.removeAll();synthesizer.stopSpeaking(at:.immediate);try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation) }
+    func stop() { identities.removeAll();synthesizer.stopSpeaking(at:.immediate);if !IOSVoiceControl.capturing { try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation) } }
     func speechSynthesizer(_ synthesizer:AVSpeechSynthesizer,didFinish utterance:AVSpeechUtterance) {
         guard !closed,let id = identities.removeValue(forKey:ObjectIdentifier(utterance)) else { return }
-        try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation);onFinished(id)
+        if !IOSVoiceControl.capturing { try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation) };onFinished(id)
     }
     func speechSynthesizer(_ synthesizer:AVSpeechSynthesizer,didCancel utterance:AVSpeechUtterance) { identities.removeValue(forKey:ObjectIdentifier(utterance)) }
     func close() { guard !closed else { return };closed = true;stop();synthesizer.delegate = nil;available = false;observers.forEach{NotificationCenter.default.removeObserver($0)};observers.removeAll() }

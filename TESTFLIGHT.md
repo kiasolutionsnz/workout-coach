@@ -19,3 +19,7 @@ Configure environment secrets `APPLE_TEAM_ID`, `IOS_CERT_P12_BASE64`, `IOS_CERT_
 A Developer-role **team** App Store Connect API key can upload builds, but its role applies across team apps; it is not restricted to this app. New credentials require explicit owner approval for this scope. Prefer a dedicated key and do not reuse or revoke unrelated keys/certificates.
 
 The workflow archives, exports and validates the signed offline app, uploads through Apple's command-line tools, and removes temporary credentials. It publishes no IPA artifacts and sends no invitations. Successful upload still requires Apple processing and any required TestFlight review. No public App Store release is performed.
+
+## Optional voice controls (next build)
+
+Enable voice control explicitly. Commands use the Coach prefix: start, pause, resume, skip rest, end set, end workout, confirm end, cancel. Ending a workout requires confirmation within eight seconds. End set saves an incomplete set. Resume still waits for visible framing. On the app screens, open routines, open history, open settings and back are supported; select a routine before start workout. English on-device recognition is required; permissions or missing offline language support leave touch controls available. No audio/transcript storage or network recognition fallback. Physical microphone accuracy, background noise and simultaneous spoken cues still need device testing.

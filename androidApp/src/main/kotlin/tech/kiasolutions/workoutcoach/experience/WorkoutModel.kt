@@ -66,6 +66,7 @@ class WorkoutModel(application:Application):AndroidViewModel(application){
     private fun update(){
         val run=session?:return
         speech?.configureExercise(run.exerciseName)
+        speech?.configureReadyInstruction("${run.exerciseName}. Set ${run.state.setIndex+1} of ${run.block.sets}. ${run.progressText}. Move into position and hold still for the countdown.")
         run.drainEvents().forEach{speech?.accept(it)}
         val phase=run.state.phase
         if(!saving && error==null && (run.pendingSet!=null || phase!=lastPhase)){

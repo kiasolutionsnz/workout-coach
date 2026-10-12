@@ -1,6 +1,8 @@
 package tech.kiasolutions.workoutcoach.experience
 
 import android.content.Intent
+import tech.kiasolutions.workoutcoach.core.speech.VoiceAction
+import tech.kiasolutions.workoutcoach.speech.VoiceControlPanel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +41,15 @@ fun exerciseLabel(id:String)=when(id){"SQUAT"->"Squat";"PUSH_UP"->"Push-up";"CUR
     BackHandler(editing || selected!=null){if(editing)discard=true else selectedId=null}
     Scaffold(topBar={TopAppBar(title={Text(if(editing)"Edit routine"else selected?.name?:"Workout Coach")})}){padding->
         Column(Modifier.padding(padding).fillMaxSize().padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+            if(!editing && !state.loading){VoiceControlPanel{command->
+                when(command){
+                    VoiceAction.HISTORY->{selectedId=null;screen="history"}
+                    VoiceAction.SETTINGS->{selectedId=null;screen="settings"}
+                    VoiceAction.ROUTINES,VoiceAction.BACK->{selectedId=null;screen="routines"}
+                    VoiceAction.START->selected?.let{routine->context.startActivity(Intent(context,CameraActivity::class.java).putExtra("routineId",routine.id).putExtra("frontCamera",state.settings.frontCamera))}
+                    else->Unit
+                }
+            };Text("Navigation: Coach open routines, open history, open settings, back. Select a routine, then say Coach start workout.",style=MaterialTheme.typography.bodySmall)}
             if(state.error!=null)Text(state.error!!,color=MaterialTheme.colorScheme.error,modifier=Modifier.testTag("form-error"))
             when{
                 state.loading->CircularProgressIndicator(Modifier.padding(24.dp))

@@ -68,6 +68,7 @@ final class IOSWorkoutModel:ObservableObject {
     private func update() {
         guard let run,!closed else { return }
         speech?.configureExercise(label:run.exerciseName)
+        speech?.configureReadyInstruction(text:"\(run.exerciseName). Set \(run.state.setIndex+1) of \(run.block.sets). \(run.progressText). Move into position and hold still for the countdown.")
         run.drainEvents().forEach { speech?.accept(event:$0) }
         let phase = run.state.phase
         if !saving && error == nil && (run.pendingSet != nil || phase != lastPhase) {

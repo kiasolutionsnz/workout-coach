@@ -14,6 +14,8 @@ class SpeechCoordinator(private val workoutId:String,private val clock:WorkoutCl
     private var active:SpeechCue?=null;private var pending:SpeechCue?=null
     var available=true;private set
     private var exerciseLabel:String?=null
+    private var readyInstruction:String?=null
+    fun configureReadyInstruction(text:String){require(text.isNotBlank() && text.length<=300);readyInstruction=text}
     fun configureExercise(label:String){require(label.isNotBlank() && label.length<=120);exerciseLabel=label}
     private fun expires(now:Long,ttl:Long)=if(now>Long.MAX_VALUE-ttl)Long.MAX_VALUE else now+ttl
     fun accept(event:WorkoutEvent){
@@ -22,7 +24,7 @@ class SpeechCoordinator(private val workoutId:String,private val clock:WorkoutCl
         lastSequence=scope.sequence
         if(!enabled)return
         val text=when(event){
-            is WorkoutEvent.Ready->(if(scope.blockIndex>0 && scope.setIndex==0)"Stop. Next exercise. "else if(scope.setIndex>0)"Stop. Next set. "else "")+(exerciseLabel?.let{"$it. "}?:"")+"Get ready."
+            is WorkoutEvent.Ready->(if(scope.blockIndex>0 && scope.setIndex==0)"Stop. Next exercise. "else if(scope.setIndex>0)"Stop. Next set. "else "")+(readyInstruction ?: ((exerciseLabel?.let{"$it. "}?:"")+"Get ready."))
             is WorkoutEvent.Countdown->event.remaining.toString()
             is WorkoutEvent.SetStarted->"Start."
             is WorkoutEvent.AcceptedRep->event.count.toString()
@@ -33,7 +35,7 @@ class SpeechCoordinator(private val workoutId:String,private val clock:WorkoutCl
             else->return
         }
         val priority=if(event is WorkoutEvent.AcceptedRep)CuePriority.REP else CuePriority.TIMING
-        enqueue(SpeechCue(scope.id,text,priority,expires(scope.atMillis,if(priority==CuePriority.REP)1500 else 2000)))
+        enqueue(SpeechCue(scope.id,text,priority,expires(scope.atMillis,if(event is WorkoutEvent.Ready)15000 else if(priority==CuePriority.REP)1500 else 2000)))
     }
     private fun enqueue(cue:SpeechCue){
         poll()

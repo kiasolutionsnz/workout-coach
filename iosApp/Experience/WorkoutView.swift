@@ -8,6 +8,9 @@ struct WorkoutView:View {
     @StateObject private var camera:IOSCameraController
     @State private var permission = AVCaptureDevice.authorizationStatus(for:.video)
     @State private var ending = false
+    @StateObject private var voiceControl = IOSVoiceControl()
+    @State private var endConfirmation = VoiceEndConfirmation()
+    @State private var voiceNotice = ""
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
     init(routine:EditableRoutine,voice:Bool,frontCamera:Bool) {
@@ -27,6 +30,8 @@ struct WorkoutView:View {
                     Text("\(state.partial) partial reps · \(run.movement.lowercased())")
                     if state.phase != .completed && state.phase != .cancelled {
                         Text(run.placement)
+                        VoiceControlPanel(voice:voiceControl)
+                        if !voiceNotice.isEmpty { Text(voiceNotice).accessibilityIdentifier("voice-notice") }
                         if state.phase == .preparing && run.startArmed { Text("Move into position. Countdown starts after two seconds of stable tracking.") }
                         if model.fixture { Text("Synthetic pose stream · agent verification") }else if !consent.allowed {
                             CameraSDKConsentView(onAccept:refreshPermission)
@@ -81,9 +86,25 @@ struct WorkoutView:View {
             }else { Button("Back"){dismiss()}.padding() }
         }
         .confirmationDialog("End workout?",isPresented:$ending,titleVisibility:.visible){Button("End workout",role:.destructive){model.cancel()};Button("Cancel",role:.cancel){} }message:{Text("Completed sets stay saved. The current set will end incomplete.")}
-        .onAppear { refreshPermission() }.onDisappear { camera.close();model.close() }
+        .onAppear { voiceControl.onCommand = handleVoice; refreshPermission() }.onDisappear { voiceControl.disable();camera.close();model.close() }
         .onChange(of:consent.allowed){allowed in if allowed { refreshPermission() }else if !model.fixture { camera.stopForConsent();model.pause(true) } }
-        .onChange(of:scenePhase){phase in if phase == .active { refreshPermission() }else { if !model.fixture {camera.suspend()};model.pause(true) } }
+        .onChange(of:scenePhase){phase in if phase == .active { refreshPermission() }else { voiceControl.disable();endConfirmation.cancel();if !model.fixture {camera.suspend()};model.pause(true) } }
+    }
+    private func handleVoice(_ command:VoiceAction) {
+        guard let run = model.run, !model.saving, model.error == nil else { return }
+        let phase = run.state.phase
+        if command != .confirmEnd && command != .requestEnd { endConfirmation.cancel() }
+        switch command {
+        case .start: if phase == .preparing { model.begin();voiceNotice = "Move into position for the countdown." }
+        case .pause: model.pause();voiceNotice = "Workout paused."
+        case .resume: if run.reliable { model.resume();voiceNotice = "Resumed." } else { voiceNotice = "Move into view before resuming." }
+        case .skipRest: if phase == .resting { model.skipRest() }
+        case .endSet: if phase == .activeSet || phase == .paused || phase == .interrupted { model.endSet();voiceNotice = "Set ended incomplete." }
+        case .requestEnd: if phase != .completed && phase != .cancelled { endConfirmation.request(nowMillis:model.clock.nowMillis());voiceNotice = "End workout? Say Coach confirm end within eight seconds, or Coach cancel." }
+        case .confirmEnd: if endConfirmation.confirm(nowMillis:model.clock.nowMillis()) { model.cancel();voiceControl.disable() } else { voiceNotice = "No current end request. Workout kept." }
+        case .cancelEnd: endConfirmation.cancel();voiceNotice = "Workout kept."
+        default: voiceNotice = "App navigation is available after leaving the workout."
+        }
     }
     private func progress(_ run:WorkoutSession)->String {
         switch run.state.phase {

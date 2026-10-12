@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import tech.kiasolutions.workoutcoach.core.contracts.*
+import tech.kiasolutions.workoutcoach.core.speech.*
+import tech.kiasolutions.workoutcoach.speech.VoiceControlPanel
 import tech.kiasolutions.workoutcoach.experience.WorkoutModel
 import tech.kiasolutions.workoutcoach.core.experience.poseLines
 
@@ -43,6 +45,8 @@ class CameraActivity:ComponentActivity(){
         setContent{MaterialTheme{Surface(Modifier.fillMaxSize()){
             val run=model.session;val refresh=model.revision
             var ending by remember{mutableStateOf(false)}
+            val confirmation=remember{VoiceEndConfirmation()}
+            var voiceNotice by remember{mutableStateOf("")}
             BackHandler{if(run==null)finish()else if(run.state.phase in listOf(WorkoutPhase.COMPLETED,WorkoutPhase.CANCELLED)){if(!model.saving && model.error==null)finish()}else ending=true}
             if(ending)AlertDialog(onDismissRequest={ending=false},title={Text("End workout?")},text={Text("Completed sets stay saved. The current set will end incomplete.")},confirmButton={TextButton(onClick={model.endSet();model.cancel();ending=false}){Text("End workout")}},dismissButton={TextButton(onClick={ending=false}){Text("Keep going")}})
             Column(Modifier.safeDrawingPadding().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -56,6 +60,23 @@ class CameraActivity:ComponentActivity(){
                     Text("${state.partial} partial reps · ${run.movement.lowercase()}")
                     if(state.phase !in listOf(WorkoutPhase.COMPLETED,WorkoutPhase.CANCELLED)){
                         Text(run.placement)
+                    VoiceControlPanel{command->
+                        if(!model.saving && model.error==null){
+                            if(command!=VoiceAction.REQUEST_END && command!=VoiceAction.CONFIRM_END)confirmation.cancel()
+                            when(command){
+                                VoiceAction.START->if(state.phase==WorkoutPhase.PREPARING){model.begin();voiceNotice="Move into position for the countdown."}
+                                VoiceAction.PAUSE->{model.pause();voiceNotice="Workout paused."}
+                                VoiceAction.RESUME->if(run.reliable){model.resume();voiceNotice="Resumed."}else{voiceNotice="Move into view before resuming."}
+                                VoiceAction.SKIP_REST->if(state.phase==WorkoutPhase.RESTING)model.skipRest()
+                                VoiceAction.END_SET->if(state.phase in listOf(WorkoutPhase.ACTIVE_SET,WorkoutPhase.PAUSED,WorkoutPhase.INTERRUPTED)){model.endSet();voiceNotice="Set ended incomplete."}
+                                VoiceAction.REQUEST_END->{confirmation.request(model.clock.nowMillis());voiceNotice="End workout? Say Coach confirm end within eight seconds, or Coach cancel."}
+                                VoiceAction.CONFIRM_END->if(confirmation.confirm(model.clock.nowMillis())){model.endSet();model.cancel()}else{voiceNotice="No current end request. Workout kept."}
+                                VoiceAction.CANCEL_END->{confirmation.cancel();voiceNotice="Workout kept."}
+                                else->voiceNotice="App navigation is available after leaving the workout."
+                            }
+                        }
+                    }
+                    if(voiceNotice.isNotEmpty())Text(voiceNotice)
                     if(run.state.phase==WorkoutPhase.PREPARING && run.startArmed)Text("Move into position. Countdown starts after two seconds of stable tracking.")
                         if(model.fixture){Text("Synthetic pose stream · agent verification")}else if(!permission){
                             Text(if(denied)"Camera access is off. Enable it in Settings."else "Enable camera access to check your position.")

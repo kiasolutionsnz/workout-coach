@@ -1,6 +1,8 @@
 import SwiftUI
 import WorkoutCore
 
+private enum VoiceRoute:Hashable { case history, settings, routine(String), workout(String) }
+
 struct CoachHomeView:View {
     @StateObject private var account = IOSAccountModel()
     var body:some View {CoachHomeContent(account:account).id(account.namespace)}
@@ -9,8 +11,12 @@ struct CoachHomeContent: View {
     @ObservedObject var account:IOSAccountModel
     @StateObject private var model = IOSAppModel()
     @State private var newRoutine = false
+    @StateObject private var voiceControl = IOSVoiceControl()
+    @State private var path:[VoiceRoute] = []
+    @State private var voiceNotice = ""
+    @Environment(\.scenePhase) private var scenePhase
     var body:some View {
-        NavigationStack {
+        NavigationStack(path:$path) {
             Group {
                 if model.loading { ProgressView("Loading routines") }
                 else { List {
@@ -18,32 +24,57 @@ struct CoachHomeContent: View {
                     if let error = model.error { Section { Text(error).foregroundStyle(.red);Button("Try again"){model.load()} } }
                     Section("Your routines") {
                         ForEach(model.routines,id:\.id) { routine in
-                            NavigationLink { RoutineDetailView(routine:routine,model:model) } label: {
+                            NavigationLink(value:VoiceRoute.routine(routine.id)) label: {
                                 VStack(alignment:.leading,spacing:6) { Text(routine.name).font(.headline);Text("\(routine.blocks.count) exercises").font(.subheadline).foregroundStyle(.secondary) }
                             }
                         }
                     }
                 } }
             }.navigationTitle("Workout Coach")
-                .toolbar { ToolbarItem(placement:.navigationBarLeading) { NavigationLink("History"){HistoryView()} };ToolbarItem(placement:.navigationBarTrailing) { NavigationLink("Settings"){CoachSettingsView(account:account,model:model)} } }
+                .toolbar { ToolbarItem(placement:.navigationBarLeading) { Button("History"){path.append(.history)} };ToolbarItem(placement:.navigationBarTrailing) { Button("Settings"){path.append(.settings)} } }
                 .safeAreaInset(edge:.bottom) {
-                    if !model.loading { Button("New routine"){model.error = nil;newRoutine = true}.buttonStyle(.borderedProminent).frame(maxWidth:.infinity).padding().background(.regularMaterial).disabled(model.error != nil) }
+                    if !model.loading { VStack { VoiceControlPanel(voice:voiceControl);Text("Navigation: Coach open routines, open history, open settings, back. Select a routine, then say Coach start workout.").font(.caption);if !voiceNotice.isEmpty { Text(voiceNotice) };Button("New routine"){model.error = nil;newRoutine = true}.buttonStyle(.borderedProminent).frame(maxWidth:.infinity).padding().background(.regularMaterial).disabled(model.error != nil) } }
                 }
                 .sheet(isPresented:$newRoutine) { RoutineEditorView(routine:nil,model:model) }
+                .navigationDestination(for:VoiceRoute.self){route in
+                    switch route {
+                    case .history: HistoryView().safeAreaInset(edge:.bottom){VoiceControlPanel(voice:voiceControl).padding()}
+                    case .settings: CoachSettingsView(account:account,model:model).safeAreaInset(edge:.bottom){VoiceControlPanel(voice:voiceControl).padding()}
+                    case .routine(let id): if let routine = model.routines.first(where:{$0.id == id}) { RoutineDetailView(routine:routine,model:model,onLeaveForWorkout:{voiceControl.disable()}).safeAreaInset(edge:.bottom){VoiceControlPanel(voice:voiceControl).padding()} }
+                    case .workout(let id): if let routine = model.routines.first(where:{$0.id == id}) { WorkoutView(routine:routine,voice:model.voice,frontCamera:model.frontCamera) }
+                    }
+                }
+                .onAppear { voiceControl.onCommand = navigate }
+                .onChange(of:newRoutine){if $0 { voiceControl.disable() }}
+                .onChange(of:scenePhase){if $0 != .active { voiceControl.disable() }}
+                .onChange(of:path){_ in if case .workout(_)? = path.last { voiceControl.disable() } else { voiceControl.onCommand = navigate } }
         }
     }
+    private func navigate(_ action:VoiceAction) {
+        guard !newRoutine, !model.loading else { return }
+        switch action {
+        case .history: path = [.history]
+        case .settings: path = [.settings]
+        case .routines: path = []
+        case .back: if !path.isEmpty { path.removeLast() }
+        case .start: if case .routine(let id)? = path.last { path.append(.workout(id)) } else { voiceNotice = "Select a routine before starting." }
+        default: voiceNotice = "Workout commands are available inside a workout."
+        }
+    }
+
 }
 
 struct RoutineDetailView: View {
     let routine:EditableRoutine
     @ObservedObject var model:IOSAppModel
+    var onLeaveForWorkout:()->Void = {}
     @State private var editing = false
     var body:some View {
         List {
             Section { ForEach(Array(routine.blocks.enumerated()),id:\.offset) { _, block in
                 VStack(alignment:.leading) { Text(exerciseLabel(block.exercise)).font(.headline);Text("\(block.sets) sets · \(block.target) \(block.exercise == "PLANK" ? "seconds" : "reps") · \(block.restSeconds)s rest").font(.subheadline).foregroundStyle(.secondary) }
             } }
-            Section { NavigationLink("Prepare workout"){WorkoutView(routine:routine,voice:model.voice,frontCamera:model.frontCamera)}.buttonStyle(.borderedProminent);Button("Edit routine"){model.error = nil;editing = true} }
+            Section { NavigationLink("Prepare workout"){WorkoutView(routine:routine,voice:model.voice,frontCamera:model.frontCamera)}.buttonStyle(.borderedProminent).simultaneousGesture(TapGesture().onEnded{onLeaveForWorkout()});Button("Edit routine"){onLeaveForWorkout();model.error = nil;editing = true} }
         }.navigationTitle(routine.name)
             .sheet(isPresented:$editing){RoutineEditorView(routine:routine,model:model)}
     }

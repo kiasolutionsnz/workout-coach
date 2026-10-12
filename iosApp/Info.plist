@@ -11,4 +11,6 @@
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>WORKOUT_OFFLINE_BETA</key><string>$(WORKOUT_OFFLINE_BETA)</string>
     <key>WORKOUT_API_BASE_URL</key><string>$(WORKOUT_API_BASE_URL)</string>
+    <key>NSMicrophoneUsageDescription</key><string>Listen for optional hands-free workout commands on your phone.</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>Recognize optional English workout commands on your phone without sending audio to a server.</string>
 </dict></plist>
